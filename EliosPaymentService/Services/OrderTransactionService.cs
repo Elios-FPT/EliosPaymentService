@@ -1,89 +1,41 @@
 using EliosPaymentService.Models;
+using EliosPaymentService.Repositories.Interfaces;
 
 namespace EliosPaymentService.Services;
 
-public static class OrderTransactionService
+public class OrderTransactionService(IOrderTransactionRepository transactionRepository)
 {
-    private static readonly List<OrderTransaction> Transactions = [];
-    private static int _nextId = 1;
+    private readonly IOrderTransactionRepository _transactions = transactionRepository;
 
-    public static List<OrderTransaction> GetAllTransactions()
+    public Task<IEnumerable<OrderTransaction>> GetByOrderIdAsync(int orderId) =>
+        _transactions.GetByOrderIdAsync(orderId);
+
+    public Task<IEnumerable<OrderTransaction>> GetByOrderCodeAsync(long orderCode) =>
+        _transactions.GetByOrderCodeAsync(orderCode);
+
+    public Task<IEnumerable<OrderTransaction>> GetByPaymentLinkIdAsync(string paymentLinkId) =>
+        _transactions.GetByPaymentLinkIdAsync(paymentLinkId);
+
+    public async Task CreateTransactionAsync(OrderTransaction transaction)
     {
-        return Transactions;
+        transaction.Id = 0;
+        await _transactions.AddAsync(transaction);
     }
 
-    public static OrderTransaction? GetTransactionById(int id)
+    public async Task CreateTransactionsAsync(IEnumerable<OrderTransaction> transactions)
     {
-        return Transactions.FirstOrDefault(t => t.Id == id);
-    }
-
-    public static List<OrderTransaction> GetTransactionsByOrderId(int orderId)
-    {
-        return Transactions.Where(t => t.OrderId == orderId).ToList();
-    }
-
-    public static List<OrderTransaction> GetTransactionsByOrderCode(long orderCode)
-    {
-        return Transactions.Where(t => t.OrderCode == orderCode).ToList();
-    }
-
-    public static List<OrderTransaction> GetTransactionsByPaymentLinkId(string paymentLinkId)
-    {
-        return Transactions.Where(t => t.PaymentLinkId == paymentLinkId).ToList();
-    }
-
-    public static void CreateTransaction(OrderTransaction transaction)
-    {
-        transaction.Id = _nextId++;
-        Transactions.Add(transaction);
-    }
-
-    public static void CreateTransactions(List<OrderTransaction> transactions)
-    {
-        foreach (var transaction in transactions)
+        var list = transactions.ToList();
+        foreach (var t in list)
         {
-            CreateTransaction(transaction);
+            t.Id = 0;
         }
+
+        await _transactions.AddRangeAsync(list);
     }
 
-    public static bool UpdateTransaction(int id, OrderTransaction updatedTransaction)
+    public async Task<bool> DeleteTransactionsByOrderIdAsync(int orderId)
     {
-        var transaction = Transactions.FirstOrDefault(t => t.Id == id);
-        if (transaction == null) return false;
-
-        transaction.OrderId = updatedTransaction.OrderId;
-        transaction.OrderCode = updatedTransaction.OrderCode;
-        transaction.PaymentLinkId = updatedTransaction.PaymentLinkId;
-        transaction.Reference = updatedTransaction.Reference;
-        transaction.Amount = updatedTransaction.Amount;
-        transaction.AccountNumber = updatedTransaction.AccountNumber;
-        transaction.Description = updatedTransaction.Description;
-        transaction.TransactionDateTime = updatedTransaction.TransactionDateTime;
-        transaction.VirtualAccountName = updatedTransaction.VirtualAccountName;
-        transaction.VirtualAccountNumber = updatedTransaction.VirtualAccountNumber;
-        transaction.CounterAccountBankId = updatedTransaction.CounterAccountBankId;
-        transaction.CounterAccountBankName = updatedTransaction.CounterAccountBankName;
-        transaction.CounterAccountName = updatedTransaction.CounterAccountName;
-        transaction.CounterAccountNumber = updatedTransaction.CounterAccountNumber;
-
+        await _transactions.DeleteByOrderIdAsync(orderId);
         return true;
-    }
-
-    public static bool DeleteTransaction(int id)
-    {
-        var transaction = Transactions.FirstOrDefault(t => t.Id == id);
-        if (transaction == null) return false;
-        Transactions.Remove(transaction);
-        return true;
-    }
-
-    public static bool DeleteTransactionsByOrderId(int orderId)
-    {
-        var transactionsToRemove = Transactions.Where(t => t.OrderId == orderId).ToList();
-        foreach (var transaction in transactionsToRemove)
-        {
-            Transactions.Remove(transaction);
-        }
-        return transactionsToRemove.Count > 0;
     }
 }

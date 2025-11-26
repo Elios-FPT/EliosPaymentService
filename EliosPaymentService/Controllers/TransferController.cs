@@ -215,7 +215,7 @@ public class TransferController([FromKeyedServices("TransferClient")] PayOSClien
             PayoutId = payout.Id,
             Category = payout.Category,
             ApprovalState = payout.ApprovalState,
-            CreatedAt = DateTimeOffset.TryParse(payout.CreatedAt, out var createdAt) ? createdAt : DateTimeOffset.Now,
+            CreatedAt = DateTimeOffset.TryParse(payout.CreatedAt, out var createdAt) ? createdAt : DateTimeOffset.UtcNow,
             Transactions = [.. payout.Transactions.Select(MapPayoutTransactionToTransferTransaction)]
         };
     }

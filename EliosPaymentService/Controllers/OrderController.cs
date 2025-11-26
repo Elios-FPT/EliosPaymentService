@@ -13,14 +13,29 @@ namespace EliosPaymentService.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class OrderController([FromKeyedServices("OrderClient")] PayOSClient client) : ControllerBase
+public class OrderController : ControllerBase
 {
-    private readonly PayOSClient _client = client;
+    private readonly PayOSClient _client;
+    private readonly OrderService _orderService;
+    private readonly OrderTransactionService _orderTransactionService;
+    private readonly OrderInvoiceService _orderInvoiceService;
+
+    public OrderController(
+        [FromKeyedServices("OrderClient")] PayOSClient client,
+        OrderService orderService,
+        OrderTransactionService orderTransactionService,
+        OrderInvoiceService orderInvoiceService)
+    {
+        _client = client;
+        _orderService = orderService;
+        _orderTransactionService = orderTransactionService;
+        _orderInvoiceService = orderInvoiceService;
+    }
 
     [HttpGet("{id}")]
     public async Task<ActionResult<Order>> Get(int id)
     {
-        var order = OrderService.GetOrderById(id);
+        var order = await _orderService.GetByIdAsync(id);
         if (order == null || string.IsNullOrEmpty(order.PaymentLinkId))
         {
             return NotFound();
@@ -40,7 +55,7 @@ public class OrderController([FromKeyedServices("OrderClient")] PayOSClient clie
 
             if (paymentLink.Transactions != null && paymentLink.Transactions.Count > 0)
             {
-                OrderTransactionService.DeleteTransactionsByOrderId(order.Id);
+                await _orderTransactionService.DeleteTransactionsByOrderIdAsync(order.Id);
 
                 var transactions = paymentLink.Transactions.Select(t => new OrderTransaction
                 {
@@ -51,7 +66,7 @@ public class OrderController([FromKeyedServices("OrderClient")] PayOSClient clie
                     Amount = t.Amount,
                     AccountNumber = t.AccountNumber,
                     Description = t.Description,
-                    TransactionDateTime = DateTimeOffset.TryParse(t.TransactionDateTime, out var transactionDateTime) ? transactionDateTime : DateTimeOffset.Now,
+                    TransactionDateTime = DateTimeOffset.TryParse(t.TransactionDateTime, out var transactionDateTime) ? transactionDateTime : DateTimeOffset.UtcNow,
                     VirtualAccountName = t.VirtualAccountName,
                     VirtualAccountNumber = t.VirtualAccountNumber,
                     CounterAccountBankId = t.CounterAccountBankId,
@@ -60,11 +75,11 @@ public class OrderController([FromKeyedServices("OrderClient")] PayOSClient clie
                     CounterAccountNumber = t.CounterAccountNumber
                 }).ToList();
 
-                OrderTransactionService.CreateTransactions(transactions);
-                order.LastTransactionUpdate = DateTimeOffset.Now;
+                await _orderTransactionService.CreateTransactionsAsync(transactions);
+                order.LastTransactionUpdate = DateTimeOffset.UtcNow;
             }
 
-            OrderService.UpdateOrder(order.Id, order);
+            await _orderService.UpdateAsync(order);
             return Ok(order);
         }
         catch (Exception ex)
@@ -146,13 +161,13 @@ public class OrderController([FromKeyedServices("OrderClient")] PayOSClient clie
                 Currency = paymentResponse.Currency,
                 ReturnUrl = returnUrl,
                 CancelUrl = cancelUrl,
-                CreatedAt = DateTimeOffset.Now,
+                CreatedAt = DateTimeOffset.UtcNow,
                 BuyerName = request.BuyerName,
                 BuyerCompanyName = request.BuyerCompanyName,
                 BuyerEmail = request.BuyerEmail,
                 BuyerPhone = request.BuyerPhone,
                 BuyerAddress = request.BuyerAddress,
-                ExpiredAt = request.ExpiredAt,
+                ExpiredAt = request.ExpiredAt?.ToUniversalTime(),
                 BuyerNotGetInvoice = request.BuyerNotGetInvoice,
                 TaxPercentage = request.TaxPercentage,
                 Items = [.. request.Items.Select(i => new OrderItem
@@ -165,8 +180,8 @@ public class OrderController([FromKeyedServices("OrderClient")] PayOSClient clie
                 })]
             };
 
-            OrderService.CreateOrder(order);
-            return CreatedAtAction(nameof(Get), new { id = order.Id }, order);
+            var created = await _orderService.CreateAsync(order);
+            return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
         }
         catch (Exception ex)
         {
@@ -177,7 +192,7 @@ public class OrderController([FromKeyedServices("OrderClient")] PayOSClient clie
     [HttpPost("{orderId}/cancel")]
     public async Task<ActionResult<PaymentLink>> CancelPayment(int orderId, string cancellationReason)
     {
-        var order = OrderService.GetOrderById(orderId);
+        var order = await _orderService.GetByIdAsync(orderId);
         if (order == null || string.IsNullOrEmpty(order.PaymentLinkId))
         {
             return NotFound();
@@ -197,7 +212,7 @@ public class OrderController([FromKeyedServices("OrderClient")] PayOSClient clie
 
             if (paymentLink.Transactions != null && paymentLink.Transactions.Count > 0)
             {
-                OrderTransactionService.DeleteTransactionsByOrderId(order.Id);
+                await _orderTransactionService.DeleteTransactionsByOrderIdAsync(order.Id);
 
                 var transactions = paymentLink.Transactions.Select(t => new OrderTransaction
                 {
@@ -208,7 +223,7 @@ public class OrderController([FromKeyedServices("OrderClient")] PayOSClient clie
                     Amount = t.Amount,
                     AccountNumber = t.AccountNumber,
                     Description = t.Description,
-                    TransactionDateTime = DateTimeOffset.TryParse(t.TransactionDateTime, out var transactionDateTime) ? transactionDateTime : DateTimeOffset.Now,
+                    TransactionDateTime = DateTimeOffset.TryParse(t.TransactionDateTime, out var transactionDateTime) ? transactionDateTime : DateTimeOffset.UtcNow,
                     VirtualAccountName = t.VirtualAccountName,
                     VirtualAccountNumber = t.VirtualAccountNumber,
                     CounterAccountBankId = t.CounterAccountBankId,
@@ -217,11 +232,11 @@ public class OrderController([FromKeyedServices("OrderClient")] PayOSClient clie
                     CounterAccountNumber = t.CounterAccountNumber
                 }).ToList();
 
-                OrderTransactionService.CreateTransactions(transactions);
-                order.LastTransactionUpdate = DateTimeOffset.Now;
+                await _orderTransactionService.CreateTransactionsAsync(transactions);
+                order.LastTransactionUpdate = DateTimeOffset.UtcNow;
             }
 
-            OrderService.UpdateOrder(order.Id, order);
+            await _orderService.UpdateAsync(order);
             return Ok(paymentLink);
         }
         catch (Exception ex)
@@ -233,7 +248,7 @@ public class OrderController([FromKeyedServices("OrderClient")] PayOSClient clie
     [HttpGet("{orderId}/invoices")]
     public async Task<ActionResult<OrderInvoicesInfo>> GetInvoices(int orderId)
     {
-        var order = OrderService.GetOrderById(orderId);
+        var order = await _orderService.GetByIdAsync(orderId);
         if (order == null || string.IsNullOrEmpty(order.PaymentLinkId))
         {
             return NotFound();
@@ -242,7 +257,7 @@ public class OrderController([FromKeyedServices("OrderClient")] PayOSClient clie
         {
             var invoices = await _client.PaymentRequests.Invoices.GetAsync(order.PaymentLinkId);
 
-            OrderInvoiceService.DeleteInvoicesByOrderId(order.Id);
+            await _orderInvoiceService.DeleteInvoicesByOrderIdAsync(order.Id);
 
             var orderInvoices = invoices.Invoices.Select(i => new OrderInvoice
             {
@@ -258,7 +273,7 @@ public class OrderController([FromKeyedServices("OrderClient")] PayOSClient clie
                 CodeOfTax = i.CodeOfTax
             }).ToList();
 
-            OrderInvoiceService.CreateInvoices(orderInvoices);
+            await _orderInvoiceService.CreateInvoicesAsync(orderInvoices);
 
             var orderInvoicesInfo = new OrderInvoicesInfo
             {
@@ -276,14 +291,14 @@ public class OrderController([FromKeyedServices("OrderClient")] PayOSClient clie
     [HttpGet("{orderId}/invoices/{invoiceId}/download")]
     public async Task<ActionResult> DownloadInvoice(int orderId, string invoiceId)
     {
-        var order = OrderService.GetOrderById(orderId);
+        var order = await _orderService.GetByIdAsync(orderId);
         if (order == null || string.IsNullOrEmpty(order.PaymentLinkId))
         {
             return NotFound();
         }
 
-        var invoice = OrderInvoiceService.GetInvoicesByOrderId(orderId)
-            .FirstOrDefault(i => i.InvoiceId == invoiceId);
+        var invoiceList = await _orderInvoiceService.GetByOrderIdAsync(orderId);
+        var invoice = invoiceList.FirstOrDefault(i => i.InvoiceId == invoiceId);
         if (invoice == null)
         {
             return NotFound("Invoice not found for this order");

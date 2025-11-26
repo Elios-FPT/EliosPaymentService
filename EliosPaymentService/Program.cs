@@ -1,9 +1,10 @@
-using PayOS;
 using EliosPaymentService.Models;
-using EliosPaymentService.Repositories.Implementations;
+using EliosPaymentService.Repositories.Implementations.Repository;
 using EliosPaymentService.Repositories.Interfaces;
+using EliosPaymentService.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using PayOS;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,6 +23,20 @@ builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IOrderTransactionRepository, OrderTransactionRepository>();
 builder.Services.AddScoped<IOrderInvoiceRepository, OrderInvoiceRepository>();
+
+// Service registration
+//builder.Services.AddScoped<IAppConfiguration, AppConfiguration>();
+//builder.Services.AddScoped<ICombinedTransaction, CombinedTransaction>();
+//builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
+//builder.Services.AddScoped(typeof(IKafkaProducerRepository<>), typeof(KafkaProducerRepository<>));
+//builder.Services.AddScoped(typeof(IKafkaConsumerRepository<>), typeof(KafkaConsumerRepository<>));
+//builder.Services.AddScoped(typeof(IKafkaConsumerRepository<>), typeof(KafkaConsumerFactory<>));
+//builder.Services.AddScoped(typeof(IKafkaResponseHandler<>), typeof(KafkaResponseHandler<>));
+//builder.Services.AddScoped<IKafkaTransaction, KafkaTransaction>();
+//builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
+builder.Services.AddScoped<OrderService>();
+builder.Services.AddScoped<OrderTransactionService>();
+builder.Services.AddScoped<OrderInvoiceService>();
 
 // Configure payOS for order controller
 builder.Services.AddKeyedSingleton("OrderClient", (sp, key) =>

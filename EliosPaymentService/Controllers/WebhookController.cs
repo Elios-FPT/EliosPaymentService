@@ -9,9 +9,21 @@ namespace EliosPaymentService.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class WebhookController([FromKeyedServices("OrderClient")] PayOSClient client) : ControllerBase
+public class WebhookController : ControllerBase
 {
-    private readonly PayOSClient _client = client;
+    private readonly PayOSClient _client;
+    private readonly OrderService _orderService;
+    private readonly OrderTransactionService _orderTransactionService;
+
+    public WebhookController(
+        [FromKeyedServices("OrderClient")] PayOSClient client,
+        OrderService orderService,
+        OrderTransactionService orderTransactionService)
+    {
+        _client = client;
+        _orderService = orderService;
+        _orderTransactionService = orderTransactionService;
+    }
 
     private static DateTimeOffset ParseWebhookDateTime(string dateTimeString)
     {
@@ -28,7 +40,7 @@ public class WebhookController([FromKeyedServices("OrderClient")] PayOSClient cl
         }
 
         // Fallback to current time if parsing fails
-        return DateTimeOffset.Now;
+        return DateTimeOffset.UtcNow;
     }
 
     [HttpPost("payment")]
@@ -47,10 +59,10 @@ public class WebhookController([FromKeyedServices("OrderClient")] PayOSClient cl
                 return Ok(new { message = "Webhook processed successfully" });
             }
 
-            var order = OrderService.GetOrderByOrderCode(webhookData.OrderCode);
+            var order = await _orderService.GetByOrderCodeAsync(webhookData.OrderCode);
             if (order != null)
             {
-                var existingTransactions = OrderTransactionService.GetTransactionsByOrderId(order.Id);
+                var existingTransactions = await _orderTransactionService.GetByOrderIdAsync(order.Id);
                 var transactionExists = existingTransactions.Any(t => t.Reference == webhookData.Reference);
 
                 if (!transactionExists)
@@ -73,18 +85,18 @@ public class WebhookController([FromKeyedServices("OrderClient")] PayOSClient cl
                         CounterAccountNumber = webhookData.CounterAccountNumber
                     };
 
-                    OrderTransactionService.CreateTransaction(transaction);
+                    await _orderTransactionService.CreateTransactionAsync(transaction);
                 }
 
-                var allTransactions = OrderTransactionService.GetTransactionsByOrderId(order.Id);
+                var allTransactions = await _orderTransactionService.GetByOrderIdAsync(order.Id);
                 var totalAmountPaid = allTransactions.Sum(t => t.Amount);
 
                 order.AmountPaid = totalAmountPaid;
                 order.AmountRemaining = order.Amount - totalAmountPaid;
                 order.Status = order.AmountRemaining > 0 ? PaymentLinkStatus.Underpaid : PaymentLinkStatus.Paid;
-                order.LastTransactionUpdate = DateTimeOffset.Now;
+                order.LastTransactionUpdate = DateTimeOffset.UtcNow;
 
-                OrderService.UpdateOrder(order.Id, order);
+                await _orderService.UpdateAsync(order);
             }
 
             return Ok(new { message = "Webhook processed successfully", orderCode = webhookData.OrderCode });

@@ -3,7 +3,7 @@ using EliosPaymentService.Models;
 using EliosPaymentService.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
-namespace EliosPaymentService.Repositories.Implementations;
+namespace EliosPaymentService.Repositories.Implementations.Repository;
 
 public class OrderRepository : Repository<Order>, IOrderRepository
 {
