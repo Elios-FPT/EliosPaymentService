@@ -1,4 +1,6 @@
 using PayOS;
+using EliosPaymentService.Models;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,6 +10,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+
+// Database Context
+builder.Services.AddDbContext<CVBuilderDataContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Configure payOS for order controller
 builder.Services.AddKeyedSingleton("OrderClient", (sp, key) =>
