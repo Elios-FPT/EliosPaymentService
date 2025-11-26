@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
 using EliosPaymentService.Models;
-using EliosPaymentService.Repositories.Interfaces;
+using EliosPaymentService.Repositories.Interfaces.IRepository;
 using Microsoft.EntityFrameworkCore;
 
 namespace EliosPaymentService.Repositories.Implementations.Repository;

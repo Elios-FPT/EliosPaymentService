@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using PayOS;
 using PayOS.Models.Webhooks;
 using PayOS.Models.V2.PaymentRequests;
@@ -27,19 +27,18 @@ public class WebhookController : ControllerBase
 
     private static DateTimeOffset ParseWebhookDateTime(string dateTimeString)
     {
-        // Try to parse the standard ISO format first (2025-10-10T11:13:30+07:00)
         if (DateTimeOffset.TryParse(dateTimeString, out var result))
         {
-            return result;
+            return result.ToUniversalTime();
         }
 
-        // Handle webhook format (2023-02-04 18:25:00)
-        if (DateTime.TryParseExact(dateTimeString, "yyyy-MM-dd HH:mm:ss", null, System.Globalization.DateTimeStyles.None, out var dateTime))
+        if (DateTime.TryParseExact(dateTimeString, "yyyy-MM-dd HH:mm:ss", null,
+            System.Globalization.DateTimeStyles.None, out var dateTime))
         {
-            return new DateTimeOffset(dateTime, TimeSpan.FromHours(7));
+            var local = new DateTimeOffset(dateTime, TimeSpan.FromHours(7));
+            return local.ToUniversalTime();
         }
 
-        // Fallback to current time if parsing fails
         return DateTimeOffset.UtcNow;
     }
 

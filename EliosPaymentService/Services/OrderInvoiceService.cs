@@ -1,5 +1,5 @@
 using EliosPaymentService.Models;
-using EliosPaymentService.Repositories.Interfaces;
+using EliosPaymentService.Repositories.Interfaces.IRepository;
 
 namespace EliosPaymentService.Services;
 
