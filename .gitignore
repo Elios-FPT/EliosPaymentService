@@ -41,6 +41,7 @@ nul
 repomix-output.xml
 .repomixignore
 FlowCreateApi.md
+EliosPaymentService/appsettings.json
 CLAUDE.md
 FlowCreateApi.md
 **/packages/*
