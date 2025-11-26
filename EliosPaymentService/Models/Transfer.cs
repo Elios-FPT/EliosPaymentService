@@ -19,7 +19,7 @@ public class Transfer
 
     public PayoutApprovalState ApprovalState { get; set; } = PayoutApprovalState.Drafting;
 
-    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.Now;
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public List<TransferTransaction> Transactions { get; set; } = [];
 }

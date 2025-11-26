@@ -16,7 +16,7 @@ public class Order
     public long TotalAmount { get; set; }
 
     // Basic order information
-    public DateTimeOffset OrderDate { get; set; } = DateTimeOffset.Now;
+    public DateTimeOffset OrderDate { get; set; } = DateTimeOffset.UtcNow;
     public string? Description { get; set; }
 
     // Payment link related properties

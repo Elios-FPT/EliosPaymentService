@@ -1,90 +1,38 @@
 using EliosPaymentService.Models;
+using EliosPaymentService.Repositories.Interfaces.IRepository;
 
 namespace EliosPaymentService.Services;
 
-public static class OrderInvoiceService
+public class OrderInvoiceService(IOrderInvoiceRepository invoiceRepository)
 {
-    private static readonly List<OrderInvoice> Invoices = [];
-    private static int _nextId = 1;
+    private readonly IOrderInvoiceRepository _invoices = invoiceRepository;
 
-    public static List<OrderInvoice> GetAllInvoices()
-    {
-        return Invoices;
-    }
+    public Task<OrderInvoice?> GetByInvoiceIdAsync(string invoiceId) =>
+        _invoices.GetByInvoiceIdAsync(invoiceId);
 
-    public static OrderInvoice? GetInvoiceById(int id)
-    {
-        return Invoices.FirstOrDefault(i => i.Id == id);
-    }
+    public Task<IEnumerable<OrderInvoice>> GetByOrderIdAsync(int orderId) =>
+        _invoices.GetByOrderIdAsync(orderId);
 
-    public static OrderInvoice? GetInvoiceByInvoiceId(string invoiceId)
-    {
-        return Invoices.FirstOrDefault(i => i.InvoiceId == invoiceId);
-    }
+    public Task<IEnumerable<OrderInvoice>> GetByOrderCodeAsync(long orderCode) =>
+        _invoices.GetByOrderCodeAsync(orderCode);
 
-    public static List<OrderInvoice> GetInvoicesByOrderId(int orderId)
-    {
-        return Invoices.Where(i => i.OrderId == orderId).ToList();
-    }
+    public Task<IEnumerable<OrderInvoice>> GetByPaymentLinkIdAsync(string paymentLinkId) =>
+        _invoices.GetByPaymentLinkIdAsync(paymentLinkId);
 
-    public static List<OrderInvoice> GetInvoicesByOrderCode(long orderCode)
+    public async Task CreateInvoicesAsync(IEnumerable<OrderInvoice> invoices)
     {
-        return Invoices.Where(i => i.OrderCode == orderCode).ToList();
-    }
-
-    public static List<OrderInvoice> GetInvoicesByPaymentLinkId(string paymentLinkId)
-    {
-        return Invoices.Where(i => i.PaymentLinkId == paymentLinkId).ToList();
-    }
-
-    public static void CreateInvoice(OrderInvoice invoice)
-    {
-        invoice.Id = _nextId++;
-        Invoices.Add(invoice);
-    }
-
-    public static void CreateInvoices(List<OrderInvoice> invoices)
-    {
-        foreach (var invoice in invoices)
+        var list = invoices.ToList();
+        foreach (var invoice in list)
         {
-            CreateInvoice(invoice);
+            invoice.Id = 0;
         }
+
+        await _invoices.AddRangeAsync(list);
     }
 
-    public static bool UpdateInvoice(int id, OrderInvoice updatedInvoice)
+    public async Task<bool> DeleteInvoicesByOrderIdAsync(int orderId)
     {
-        var invoice = Invoices.FirstOrDefault(i => i.Id == id);
-        if (invoice == null) return false;
-
-        invoice.OrderId = updatedInvoice.OrderId;
-        invoice.OrderCode = updatedInvoice.OrderCode;
-        invoice.PaymentLinkId = updatedInvoice.PaymentLinkId;
-        invoice.InvoiceId = updatedInvoice.InvoiceId;
-        invoice.InvoiceNumber = updatedInvoice.InvoiceNumber;
-        invoice.IssuedTimestamp = updatedInvoice.IssuedTimestamp;
-        invoice.IssuedDatetime = updatedInvoice.IssuedDatetime;
-        invoice.TransactionId = updatedInvoice.TransactionId;
-        invoice.ReservationCode = updatedInvoice.ReservationCode;
-        invoice.CodeOfTax = updatedInvoice.CodeOfTax;
-
+        await _invoices.DeleteByOrderIdAsync(orderId);
         return true;
-    }
-
-    public static bool DeleteInvoice(int id)
-    {
-        var invoice = Invoices.FirstOrDefault(i => i.Id == id);
-        if (invoice == null) return false;
-        Invoices.Remove(invoice);
-        return true;
-    }
-
-    public static bool DeleteInvoicesByOrderId(int orderId)
-    {
-        var invoicesToRemove = Invoices.Where(i => i.OrderId == orderId).ToList();
-        foreach (var invoice in invoicesToRemove)
-        {
-            Invoices.Remove(invoice);
-        }
-        return invoicesToRemove.Count > 0;
     }
 }

@@ -1,10 +1,14 @@
-using PayOS;
+using CEliosPaymentService.Repositories.Interfaces;
 using EliosPaymentService.Models;
 using EliosPaymentService.Repositories.Implementations;
+using EliosPaymentService.Repositories.Implementations.Repository;
 using EliosPaymentService.Repositories.Interfaces;
+using EliosPaymentService.Repositories.Interfaces.IRepository;
+using EliosPaymentService.Services;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-
+using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
+using PayOS;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -22,6 +26,20 @@ builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IOrderTransactionRepository, OrderTransactionRepository>();
 builder.Services.AddScoped<IOrderInvoiceRepository, OrderInvoiceRepository>();
+
+// Service registration
+builder.Services.AddScoped<IAppConfiguration, AppConfiguration>();
+builder.Services.AddScoped<ICombinedTransaction, CombinedTransaction>();
+builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
+builder.Services.AddScoped(typeof(IKafkaProducerRepository<>), typeof(KafkaProducerRepository<>));
+builder.Services.AddScoped(typeof(IKafkaConsumerRepository<>), typeof(KafkaConsumerRepository<>));
+builder.Services.AddScoped(typeof(IKafkaConsumerFactory<>), typeof(KafkaConsumerFactory<>));
+builder.Services.AddScoped(typeof(IKafkaResponseHandler<>), typeof(KafkaResponseHandler<>));
+builder.Services.AddScoped<IKafkaTransaction, KafkaTransaction>();
+builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
+builder.Services.AddScoped<OrderService>();
+builder.Services.AddScoped<OrderTransactionService>();
+builder.Services.AddScoped<OrderInvoiceService>();
 
 // Configure payOS for order controller
 builder.Services.AddKeyedSingleton("OrderClient", (sp, key) =>
@@ -49,21 +67,63 @@ builder.Services.AddKeyedSingleton("TransferClient", (sp, key) =>
     });
 });
 
+// Kafka Consumers
+var sourceServices = builder.Configuration.GetSection("Kafka:SourceServices").Get<string[]>() ?? [];
+
+Console.WriteLine($"[{DateTime.UtcNow:HH:mm:ss}] Registering {sourceServices.Length} Kafka consumers for sources: [{string.Join(", ", sourceServices)}]");
+
+
+foreach (var sourceService in sourceServices)
+{
+    var currentSource = sourceService;
+
+    builder.Services.AddSingleton<IHostedService>(sp =>
+    {
+        var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+
+        return ActivatorUtilities.CreateInstance<KafkaConsumerHostedService<Order>>(
+            sp,
+            scopeFactory,
+            currentSource
+        );
+    });
+}
+
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+
+app.Lifetime.ApplicationStarted.Register(() =>
 {
-    app.MapOpenApi();
-    app.UseDeveloperExceptionPage();
-    app.UseSwaggerUI(options => options.SwaggerEndpoint("/openapi/v1.json", "v1"));
-}
+    using var scope = app.Services.CreateScope();
+    var appConfiguration = scope.ServiceProvider.GetRequiredService<IAppConfiguration>();
+    KafkaResponseConsumer.Initialize(appConfiguration);
+    Console.WriteLine($"[{DateTime.UtcNow:HH:mm:ss}] KafkaResponseConsumer initialized");
+});
+
+// Configure the HTTP request pipeline.
+//if (app.Environment.IsDevelopment())
+//{
+//    app.MapOpenApi();
+//    app.UseDeveloperExceptionPage();
+//    app.UseSwaggerUI(options => options.SwaggerEndpoint("/openapi/v1.json", "v1"));
+//}
+
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "ForumService API forum");
+    c.DocumentTitle = "ForumService API Documentation";
+    c.RoutePrefix = "swagger";
+});
 
 app.UseHttpsRedirection();
 
 app.UseAuthorization();
 
 app.MapControllers();
+
+var currentService = builder.Configuration["KafkaCommunication:CurrentService"];
+Console.WriteLine($"[{DateTime.UtcNow:HH:mm:ss}] {currentService} Service Started!");
+Console.WriteLine($"[{DateTime.UtcNow:HH:mm:ss}] Kafka Consumers registered for: [{string.Join(", ", sourceServices)}]");
 
 app.Run();

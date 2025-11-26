@@ -1,7 +1,7 @@
 using System.Threading.Tasks;
 using EliosPaymentService.Models;
 
-namespace EliosPaymentService.Repositories.Interfaces;
+namespace EliosPaymentService.Repositories.Interfaces.IRepository;
 
 public interface IOrderRepository : IRepository<Order>
 {

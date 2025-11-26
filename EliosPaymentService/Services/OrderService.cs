@@ -1,99 +1,97 @@
 using EliosPaymentService.Models;
-using PayOS.Models.V2.PaymentRequests;
+using EliosPaymentService.Repositories.Interfaces.IRepository;
 
 namespace EliosPaymentService.Services;
 
-public static class OrderService
+public class OrderService(IOrderRepository orderRepository)
 {
-    private static readonly List<Order> Orders = [];
+    private readonly IOrderRepository _orders = orderRepository;
 
-    public static List<Order> GetAllOrders()
+    public Task<Order?> GetByIdAsync(int id) =>
+        _orders.GetByIdAsync(id);
+
+    public Task<Order?> GetByOrderCodeAsync(long orderCode) =>
+        _orders.GetByOrderCodeAsync(orderCode);
+
+    public Task<Order?> GetByPaymentLinkIdAsync(string paymentLinkId) =>
+        _orders.GetByPaymentLinkIdAsync(paymentLinkId);
+
+    public async Task<Order> CreateAsync(Order order)
     {
-        return Orders;
+        // Db will generate identity; ensure Id is default
+        order.Id = 0;
+        return await _orders.AddAsync(order);
     }
 
-    public static Order? GetOrderById(int id)
+    public async Task<bool> UpdateAsync(Order updatedOrder)
     {
-        return Orders.FirstOrDefault(o => o.Id == id);
-    }
-
-    public static Order? GetOrderByOrderCode(long orderCode)
-    {
-        return Orders.FirstOrDefault(o => o.OrderCode == orderCode);
-    }
-
-    public static Order? GetOrderByPaymentLinkId(string paymentLinkId)
-    {
-        return Orders.FirstOrDefault(o => o.PaymentLinkId == paymentLinkId);
-    }
-
-    public static void CreateOrder(Order order)
-    {
-        order.Id = Orders.Count + 1;
-        Orders.Add(order);
-    }
-
-    public static bool UpdateOrder(int id, Order updatedOrder)
-    {
-        var order = Orders.FirstOrDefault(o => o.Id == id);
-        if (order == null) return false;
+        var existing = await _orders.GetByIdAsync(updatedOrder.Id);
+        if (existing is null)
+        {
+            return false;
+        }
 
         // Basic order information
-        order.OrderCode = updatedOrder.OrderCode;
-        order.TotalAmount = updatedOrder.TotalAmount;
-        order.OrderDate = updatedOrder.OrderDate;
-        order.Description = updatedOrder.Description;
-        order.Items = updatedOrder.Items;
+        existing.OrderCode = updatedOrder.OrderCode;
+        existing.TotalAmount = updatedOrder.TotalAmount;
+        existing.OrderDate = updatedOrder.OrderDate;
+        existing.Description = updatedOrder.Description;
+        existing.Items = updatedOrder.Items;
 
         // Payment link related properties
-        order.PaymentLinkId = updatedOrder.PaymentLinkId;
-        order.QrCode = updatedOrder.QrCode;
-        order.CheckoutUrl = updatedOrder.CheckoutUrl;
-        order.Status = updatedOrder.Status;
+        existing.PaymentLinkId = updatedOrder.PaymentLinkId;
+        existing.QrCode = updatedOrder.QrCode;
+        existing.CheckoutUrl = updatedOrder.CheckoutUrl;
+        existing.Status = updatedOrder.Status;
 
         // Amount tracking
-        order.Amount = updatedOrder.Amount;
-        order.AmountPaid = updatedOrder.AmountPaid;
-        order.AmountRemaining = updatedOrder.AmountRemaining;
+        existing.Amount = updatedOrder.Amount;
+        existing.AmountPaid = updatedOrder.AmountPaid;
+        existing.AmountRemaining = updatedOrder.AmountRemaining;
 
         // Buyer information
-        order.BuyerName = updatedOrder.BuyerName;
-        order.BuyerCompanyName = updatedOrder.BuyerCompanyName;
-        order.BuyerEmail = updatedOrder.BuyerEmail;
-        order.BuyerPhone = updatedOrder.BuyerPhone;
-        order.BuyerAddress = updatedOrder.BuyerAddress;
+        existing.BuyerName = updatedOrder.BuyerName;
+        existing.BuyerCompanyName = updatedOrder.BuyerCompanyName;
+        existing.BuyerEmail = updatedOrder.BuyerEmail;
+        existing.BuyerPhone = updatedOrder.BuyerPhone;
+        existing.BuyerAddress = updatedOrder.BuyerAddress;
 
         // Payment link details
-        order.Bin = updatedOrder.Bin;
-        order.AccountNumber = updatedOrder.AccountNumber;
-        order.AccountName = updatedOrder.AccountName;
-        order.Currency = updatedOrder.Currency;
+        existing.Bin = updatedOrder.Bin;
+        existing.AccountNumber = updatedOrder.AccountNumber;
+        existing.AccountName = updatedOrder.AccountName;
+        existing.Currency = updatedOrder.Currency;
 
         // URLs
-        order.ReturnUrl = updatedOrder.ReturnUrl;
-        order.CancelUrl = updatedOrder.CancelUrl;
+        existing.ReturnUrl = updatedOrder.ReturnUrl;
+        existing.CancelUrl = updatedOrder.CancelUrl;
 
         // Timestamps
-        order.CreatedAt = updatedOrder.CreatedAt;
-        order.CanceledAt = updatedOrder.CanceledAt;
-        order.ExpiredAt = updatedOrder.ExpiredAt;
-        order.LastTransactionUpdate = updatedOrder.LastTransactionUpdate;
+        existing.CreatedAt = updatedOrder.CreatedAt;
+        existing.CanceledAt = updatedOrder.CanceledAt;
+        existing.ExpiredAt = updatedOrder.ExpiredAt;
+        existing.LastTransactionUpdate = updatedOrder.LastTransactionUpdate;
 
         // Cancellation
-        order.CancellationReason = updatedOrder.CancellationReason;
+        existing.CancellationReason = updatedOrder.CancellationReason;
 
         // Invoice settings
-        order.BuyerNotGetInvoice = updatedOrder.BuyerNotGetInvoice;
-        order.TaxPercentage = updatedOrder.TaxPercentage;
+        existing.BuyerNotGetInvoice = updatedOrder.BuyerNotGetInvoice;
+        existing.TaxPercentage = updatedOrder.TaxPercentage;
 
+        await _orders.UpdateAsync(existing);
         return true;
     }
 
-    public static bool DeleteOrder(int id)
+    public async Task<bool> DeleteAsync(int id)
     {
-        var order = Orders.FirstOrDefault(o => o.Id == id);
-        if (order == null) return false;
-        Orders.Remove(order);
+        var existing = await _orders.GetByIdAsync(id);
+        if (existing is null)
+        {
+            return false;
+        }
+
+        await _orders.DeleteAsync(existing);
         return true;
     }
 }

@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using EliosPaymentService.Models;
 
-namespace EliosPaymentService.Repositories.Interfaces;
+namespace EliosPaymentService.Repositories.Interfaces.IRepository;
 
 public interface IOrderTransactionRepository : IRepository<OrderTransaction>
 {

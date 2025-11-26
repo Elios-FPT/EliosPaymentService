@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace EliosPaymentService.Repositories.Interfaces;
+namespace EliosPaymentService.Repositories.Interfaces.IRepository;
 
 public interface IRepository<TEntity> where TEntity : class
 {

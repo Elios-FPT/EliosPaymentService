@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using PayOS;
 using PayOS.Models.Webhooks;
 using PayOS.Models.V2.PaymentRequests;
@@ -9,26 +9,37 @@ namespace EliosPaymentService.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class WebhookController([FromKeyedServices("OrderClient")] PayOSClient client) : ControllerBase
+public class WebhookController : ControllerBase
 {
-    private readonly PayOSClient _client = client;
+    private readonly PayOSClient _client;
+    private readonly OrderService _orderService;
+    private readonly OrderTransactionService _orderTransactionService;
+
+    public WebhookController(
+        [FromKeyedServices("OrderClient")] PayOSClient client,
+        OrderService orderService,
+        OrderTransactionService orderTransactionService)
+    {
+        _client = client;
+        _orderService = orderService;
+        _orderTransactionService = orderTransactionService;
+    }
 
     private static DateTimeOffset ParseWebhookDateTime(string dateTimeString)
     {
-        // Try to parse the standard ISO format first (2025-10-10T11:13:30+07:00)
         if (DateTimeOffset.TryParse(dateTimeString, out var result))
         {
-            return result;
+            return result.ToUniversalTime();
         }
 
-        // Handle webhook format (2023-02-04 18:25:00)
-        if (DateTime.TryParseExact(dateTimeString, "yyyy-MM-dd HH:mm:ss", null, System.Globalization.DateTimeStyles.None, out var dateTime))
+        if (DateTime.TryParseExact(dateTimeString, "yyyy-MM-dd HH:mm:ss", null,
+            System.Globalization.DateTimeStyles.None, out var dateTime))
         {
-            return new DateTimeOffset(dateTime, TimeSpan.FromHours(7));
+            var local = new DateTimeOffset(dateTime, TimeSpan.FromHours(7));
+            return local.ToUniversalTime();
         }
 
-        // Fallback to current time if parsing fails
-        return DateTimeOffset.Now;
+        return DateTimeOffset.UtcNow;
     }
 
     [HttpPost("payment")]
@@ -47,10 +58,10 @@ public class WebhookController([FromKeyedServices("OrderClient")] PayOSClient cl
                 return Ok(new { message = "Webhook processed successfully" });
             }
 
-            var order = OrderService.GetOrderByOrderCode(webhookData.OrderCode);
+            var order = await _orderService.GetByOrderCodeAsync(webhookData.OrderCode);
             if (order != null)
             {
-                var existingTransactions = OrderTransactionService.GetTransactionsByOrderId(order.Id);
+                var existingTransactions = await _orderTransactionService.GetByOrderIdAsync(order.Id);
                 var transactionExists = existingTransactions.Any(t => t.Reference == webhookData.Reference);
 
                 if (!transactionExists)
@@ -73,18 +84,18 @@ public class WebhookController([FromKeyedServices("OrderClient")] PayOSClient cl
                         CounterAccountNumber = webhookData.CounterAccountNumber
                     };
 
-                    OrderTransactionService.CreateTransaction(transaction);
+                    await _orderTransactionService.CreateTransactionAsync(transaction);
                 }
 
-                var allTransactions = OrderTransactionService.GetTransactionsByOrderId(order.Id);
+                var allTransactions = await _orderTransactionService.GetByOrderIdAsync(order.Id);
                 var totalAmountPaid = allTransactions.Sum(t => t.Amount);
 
                 order.AmountPaid = totalAmountPaid;
                 order.AmountRemaining = order.Amount - totalAmountPaid;
                 order.Status = order.AmountRemaining > 0 ? PaymentLinkStatus.Underpaid : PaymentLinkStatus.Paid;
-                order.LastTransactionUpdate = DateTimeOffset.Now;
+                order.LastTransactionUpdate = DateTimeOffset.UtcNow;
 
-                OrderService.UpdateOrder(order.Id, order);
+                await _orderService.UpdateAsync(order);
             }
 
             return Ok(new { message = "Webhook processed successfully", orderCode = webhookData.OrderCode });
