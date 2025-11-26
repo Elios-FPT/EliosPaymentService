@@ -1,5 +1,7 @@
 using PayOS;
 using EliosPaymentService.Models;
+using EliosPaymentService.Repositories.Implementations;
+using EliosPaymentService.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -14,6 +16,12 @@ builder.Services.AddOpenApi();
 // Database Context
 builder.Services.AddDbContext<CVBuilderDataContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Repository registration
+builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+builder.Services.AddScoped<IOrderRepository, OrderRepository>();
+builder.Services.AddScoped<IOrderTransactionRepository, OrderTransactionRepository>();
+builder.Services.AddScoped<IOrderInvoiceRepository, OrderInvoiceRepository>();
 
 // Configure payOS for order controller
 builder.Services.AddKeyedSingleton("OrderClient", (sp, key) =>
