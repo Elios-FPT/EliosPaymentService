@@ -94,11 +94,11 @@ public class WebhookController : ControllerBase
                 order.AmountRemaining = order.Amount - totalAmountPaid;
                 order.Status = order.AmountRemaining > 0 ? PaymentLinkStatus.Underpaid : PaymentLinkStatus.Paid;
                 order.LastTransactionUpdate = DateTimeOffset.UtcNow;
-
                 await _orderService.UpdateAsync(order);
+                await _orderService.UpdateUserTokenAsync(order.Id);
             }
 
-            return Ok(new { message = "Webhook processed successfully", orderCode = webhookData.OrderCode });
+            return Ok();
         }
         catch (Exception ex)
         {

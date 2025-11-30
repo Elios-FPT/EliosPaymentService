@@ -32,6 +32,57 @@ public class OrderController : ControllerBase
         _orderInvoiceService = orderInvoiceService;
     }
 
+    [HttpGet("user/{userId}")]
+    public async Task<ActionResult<PagedOrderResult>> GetByUserId(
+        Guid userId,
+        [FromQuery] int page = 1,
+        [FromQuery] int limit = 10,
+        [FromQuery] PaymentLinkStatus? status = null,
+        [FromQuery] string sortBy = "createdAt",
+        [FromQuery] bool descending = true)
+    {
+        // Input validation
+        if (page < 1)
+        {
+            return BadRequest("Page must be at least 1");
+        }
+
+        if (limit < 1 || limit > 100)
+        {
+            return BadRequest("Limit must be between 1 and 100");
+        }
+
+        try
+        {
+            // Get paginated orders
+            var (orders, totalCount) = await _orderService.GetByUserIdAsync(
+                userId, page, limit, status, sortBy, descending);
+
+            // Get statistics
+            var statistics = await _orderService.GetStatisticsByUserIdAsync(userId);
+
+            var result = new PagedOrderResult
+            {
+                Data = orders,
+                Pagination = new PaginationMetadata
+                {
+                    Page = page,
+                    Limit = limit,
+                    TotalCount = totalCount,
+                    TotalPages = (int)Math.Ceiling(totalCount / (double)limit)
+                },
+                Statistics = statistics
+            };
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { message = $"Failed to retrieve orders for user {userId}", error = ex.Message });
+        }
+    }
+
     [HttpGet("{id}")]
     public async Task<ActionResult<Order>> Get(int id)
     {
@@ -145,6 +196,7 @@ public class OrderController : ControllerBase
             var order = new Order
             {
                 Id = 0, // Will be set by service
+                UserId = request.UserId,
                 OrderCode = orderCode,
                 TotalAmount = request.TotalAmount,
                 Description = paymentResponse.Description,
