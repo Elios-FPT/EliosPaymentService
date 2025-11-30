@@ -5,7 +5,7 @@ using EliosPaymentService.Repositories.Implementations.Repository;
 using EliosPaymentService.Repositories.Interfaces;
 using EliosPaymentService.Repositories.Interfaces.IRepository;
 using EliosPaymentService.Services;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using PayOS;
@@ -14,6 +14,16 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 builder.Services.AddControllers();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "SUtility API",
+        Version = "v1",
+        Description = "API utility operations"
+    });
+    c.AddServer(new OpenApiServer { Url = "/" });
+});
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
@@ -109,10 +119,11 @@ app.Lifetime.ApplicationStarted.Register(() =>
 //    app.UseSwaggerUI(options => options.SwaggerEndpoint("/openapi/v1.json", "v1"));
 //}
 
+app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "ForumService API forum");
-    c.DocumentTitle = "ForumService API Documentation";
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "PaymentService API forum");
+    c.DocumentTitle = "PaymentService API Documentation";
     c.RoutePrefix = "swagger";
 });
 
