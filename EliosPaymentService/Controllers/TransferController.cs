@@ -13,7 +13,7 @@ using EliosPaymentService.Services;
 namespace EliosPaymentService.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/payment/[controller]")]
 public class TransferController([FromKeyedServices("TransferClient")] PayOSClient client) : ControllerBase
 {
     private readonly PayOSClient _client = client;

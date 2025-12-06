@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace SUtility.Web.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/payment/[controller]")]
     public class TestUserController : ControllerBase
     {
         private readonly IKafkaProducerRepository<User> _producerRepository;

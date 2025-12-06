@@ -8,7 +8,7 @@ using EliosPaymentService.Models;
 namespace EliosPaymentService.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/payment/[controller]")]
 public class WebhookController : ControllerBase
 {
     private readonly PayOSClient _client;
