@@ -6,8 +6,6 @@ namespace EliosPaymentService.Models;
 
 public class OrderCreateRequest
 {
-    [Required] 
-    public Guid UserId { get; set; }
     [Required]
     public long TotalAmount { get; set; }
 

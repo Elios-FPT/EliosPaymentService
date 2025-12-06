@@ -12,7 +12,7 @@ using PayOS;
 namespace EliosPaymentService.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/payment/[controller]")]
 public class OrderController : ControllerBase
 {
     private readonly PayOSClient _client;
@@ -189,6 +189,13 @@ public class OrderController : ControllerBase
             };
         }
 
+        // Extract ID from header
+        var userIdHeader = Request.Headers["X-Auth-Request-User"].ToString();
+        if (!Guid.TryParse(userIdHeader, out var ownerId))
+        {
+            return StatusCode(StatusCodes.Status401Unauthorized, new { message = "Unauthorized: Invalid user ID" });
+        }
+
         try
         {
             var paymentResponse = await _client.PaymentRequests.CreateAsync(paymentRequest);
@@ -196,7 +203,7 @@ public class OrderController : ControllerBase
             var order = new Order
             {
                 Id = 0, // Will be set by service
-                UserId = request.UserId,
+                UserId = ownerId,
                 OrderCode = orderCode,
                 TotalAmount = request.TotalAmount,
                 Description = paymentResponse.Description,
