@@ -12,12 +12,12 @@ namespace EliosPaymentService.Controllers;
 public class WebhookController : ControllerBase
 {
     private readonly PayOSClient _client;
-    private readonly OrderService _orderService;
+    private readonly IOrderService _orderService;
     private readonly OrderTransactionService _orderTransactionService;
 
     public WebhookController(
         [FromKeyedServices("OrderClient")] PayOSClient client,
-        OrderService orderService,
+        IOrderService orderService,
         OrderTransactionService orderTransactionService)
     {
         _client = client;

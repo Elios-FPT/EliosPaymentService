@@ -5,7 +5,7 @@ using PayOS.Models.V2.PaymentRequests;
 
 namespace EliosPaymentService.Services;
 
-public class OrderService(IOrderRepository orderRepository, IKafkaProducerRepository<UserTokenUpdate> tokenProducer)
+public class OrderService(IOrderRepository orderRepository, IKafkaProducerRepository<UserTokenUpdate> tokenProducer) : IOrderService
 {
     private readonly IOrderRepository _orders = orderRepository;
     private readonly IKafkaProducerRepository<UserTokenUpdate> _tokenProducer = tokenProducer;
