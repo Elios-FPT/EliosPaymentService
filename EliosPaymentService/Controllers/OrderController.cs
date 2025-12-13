@@ -16,13 +16,13 @@ namespace EliosPaymentService.Controllers;
 public class OrderController : ControllerBase
 {
     private readonly PayOSClient _client;
-    private readonly OrderService _orderService;
+    private readonly IOrderService _orderService;
     private readonly OrderTransactionService _orderTransactionService;
     private readonly OrderInvoiceService _orderInvoiceService;
 
     public OrderController(
         [FromKeyedServices("OrderClient")] PayOSClient client,
-        OrderService orderService,
+        IOrderService orderService,
         OrderTransactionService orderTransactionService,
         OrderInvoiceService orderInvoiceService)
     {
@@ -375,6 +375,62 @@ public class OrderController : ControllerBase
         catch (Exception ex)
         {
             return StatusCode(StatusCodes.Status500InternalServerError, new { message = $"Failed to download invoice {invoiceId}", error = ex.Message });
+        }
+    }
+
+    [HttpGet("user/current")]
+    public async Task<ActionResult<PagedOrderResult>> GetByUserId(
+        [FromQuery] int page = 1,
+        [FromQuery] int limit = 10,
+        [FromQuery] PaymentLinkStatus? status = null,
+        [FromQuery] string sortBy = "createdAt",
+        [FromQuery] bool descending = true)
+    {
+        var userIdHeader = Request.Headers["X-Auth-Request-User"].ToString();
+        if (!Guid.TryParse(userIdHeader, out var userId))
+        {
+            return StatusCode(StatusCodes.Status401Unauthorized, new { message = "Unauthorized: Invalid user ID" });
+        }
+
+        // Input validation
+        if (page < 1)
+        {
+            return BadRequest("Page must be at least 1");
+        }
+
+        if (limit < 1 || limit > 100)
+        {
+            return BadRequest("Limit must be between 1 and 100");
+        }
+
+        try
+        {
+            // Get paginated orders
+            var (orders, totalCount) = await _orderService.GetByUserIdAsync(
+                userId, page, limit, status, sortBy, descending);
+
+            // Get statistics
+            var statistics = await _orderService.GetStatisticsByUserIdAsync(userId);
+
+            var result = new PagedOrderResult
+            {
+                Data = orders,
+                Pagination = new PaginationMetadata
+                {
+                    Page = page,
+                    Limit = limit,
+                    TotalCount = totalCount,
+                    TotalPages = (int)Math.Ceiling(totalCount / (double)limit)
+                },
+                Statistics = statistics
+            };
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { message = $"Failed to retrieve orders for user {userId}", error = ex.Message });
         }
     }
 }

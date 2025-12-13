@@ -40,6 +40,7 @@ builder.Services.AddScoped<IOrderInvoiceRepository, OrderInvoiceRepository>();
 // Service registration
 builder.Services.AddScoped<IAppConfiguration, AppConfiguration>();
 builder.Services.AddScoped<ICombinedTransaction, CombinedTransaction>();
+builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped(typeof(IKafkaProducerRepository<>), typeof(KafkaProducerRepository<>));
 builder.Services.AddScoped(typeof(IKafkaConsumerRepository<>), typeof(KafkaConsumerRepository<>));
